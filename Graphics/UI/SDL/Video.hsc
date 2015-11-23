@@ -53,6 +53,7 @@ module Graphics.UI.SDL.Video
   , getWindowDisplayMode
 
   , getWindowDisplayIndex
+    
 
   , WindowID
   , getWindowID
@@ -86,6 +87,8 @@ module Graphics.UI.SDL.Video
 
     -- * Surfaces
   , surfaceFormat
+  , getWindowSurface
+  , updateWindowSurface
 
     -- * Screensaver handling
   , disableScreenSaver
@@ -97,6 +100,7 @@ module Graphics.UI.SDL.Video
   , allocFormat
   , mapRGB
   , mapRGBA
+  , getRGB
 
     -- * Display Modes
   , DisplayMode(..)
@@ -132,6 +136,7 @@ import Graphics.UI.SDL.Utilities
 import Graphics.UI.SDL.General
 import Graphics.UI.SDL.Rect (Rect(..))
 import Graphics.UI.SDL.Raw
+import Graphics.UI.SDL.Color
 
 import qualified Data.Text as T
 
@@ -599,6 +604,35 @@ surfaceFormat :: Surface -> IO PixelFormat
 surfaceFormat s =
   withForeignPtr s $ \cs ->
   #{peek SDL_Surface, format} cs >>= newForeignPtr_
+ 
+foreign import ccall safe "SDL_GetRGB"
+  sdlGetRGB :: Word32 -> Ptr PixelFormatStruct -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
+
+getRGB :: Pixel -> PixelFormat -> IO (Word8, Word8, Word8)
+getRGB (Pixel p) format
+  = alloca $ \red -> 
+    alloca $ \green ->
+    alloca $ \blue -> 
+    withForeignPtr format $ \ptr ->
+    do sdlGetRGB p ptr red green blue
+       [r,g,b] <- mapM peek [red,green,blue]
+       return (r,g,b)
+--------------------------------------------------------------------------------
+foreign import ccall safe "SDL_GetWindowSurface"
+  sdlGetWindowSurface :: Ptr WindowStruct -> IO (Ptr SurfaceStruct)
+
+getWindowSurface :: Window -> IO Surface
+getWindowSurface w = withForeignPtr w sdlGetWindowSurface >>=  mkFinalizedSurface
+
+foreign import ccall safe "SDL_UpdateWindowSurface"                 
+  sdlUpdateWindowSurface :: Ptr WindowStruct -> IO #{type int}        
+
+updateWindowSurface :: Window -> IO Int
+updateWindowSurface win = 
+  withForeignPtr win $ \cw -> do
+    ret <- sdlUpdateWindowSurface cw
+    handleErrorI "updateWindowSurface" ret (return . fromIntegral)
+
 
 --------------------------------------------------------------------------------
 data DisplayMode = DisplayMode { displayModeFormat :: PixelFormatEnum

@@ -181,7 +181,7 @@ foreign import ccall safe "SDL_GL_CreateContext"
 glCreateContext :: Window -> IO GLContext
 glCreateContext w = withForeignPtr w $
   fatalSDLNull "SDL_GL_CreateContext" . sdlGlCreateContext >=>
-    newForeignPtr sdlGlDeleteContext_finalizer
+    touchForeignPtr sdlGlDeleteContext_finalizer
 
 --------------------------------------------------------------------------------
 foreign import ccall safe "SDL_GL_GetCurrentContext"
