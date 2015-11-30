@@ -85,7 +85,7 @@ handleError fname ptr fn
 
 handleErrorI :: (Num a, Ord a) => String -> a -> (a -> IO b) -> IO b
 handleErrorI fname i fn
-  | i < 0     = fn i
+  | i == 0     = fn i
   | otherwise =  (\err -> error $ fname ++ ": " ++ show err) =<< getError
 {-# INLINE handleErrorI #-}
 

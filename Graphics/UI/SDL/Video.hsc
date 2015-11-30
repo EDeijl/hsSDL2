@@ -53,7 +53,6 @@ module Graphics.UI.SDL.Video
   , getWindowDisplayMode
 
   , getWindowDisplayIndex
-    
 
   , WindowID
   , getWindowID
@@ -101,6 +100,7 @@ module Graphics.UI.SDL.Video
   , mapRGB
   , mapRGBA
   , getRGB
+  , getRGBA
 
     -- * Display Modes
   , DisplayMode(..)
@@ -605,35 +605,6 @@ surfaceFormat s =
   withForeignPtr s $ \cs ->
   #{peek SDL_Surface, format} cs >>= newForeignPtr_
  
-foreign import ccall safe "SDL_GetRGB"
-  sdlGetRGB :: Word32 -> Ptr PixelFormatStruct -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
-
-getRGB :: Pixel -> PixelFormat -> IO (Word8, Word8, Word8)
-getRGB (Pixel p) format
-  = alloca $ \red -> 
-    alloca $ \green ->
-    alloca $ \blue -> 
-    withForeignPtr format $ \ptr ->
-    do sdlGetRGB p ptr red green blue
-       [r,g,b] <- mapM peek [red,green,blue]
-       return (r,g,b)
---------------------------------------------------------------------------------
-foreign import ccall safe "SDL_GetWindowSurface"
-  sdlGetWindowSurface :: Ptr WindowStruct -> IO (Ptr SurfaceStruct)
-
-getWindowSurface :: Window -> IO Surface
-getWindowSurface w = withForeignPtr w sdlGetWindowSurface >>=  mkFinalizedSurface
-
-foreign import ccall safe "SDL_UpdateWindowSurface"                 
-  sdlUpdateWindowSurface :: Ptr WindowStruct -> IO #{type int}        
-
-updateWindowSurface :: Window -> IO Int
-updateWindowSurface win = 
-  withForeignPtr win $ \cw -> do
-    ret <- sdlUpdateWindowSurface cw
-    handleErrorI "updateWindowSurface" ret (return . fromIntegral)
-
-
 --------------------------------------------------------------------------------
 data DisplayMode = DisplayMode { displayModeFormat :: PixelFormatEnum
                                , displayModeWidth  :: #{type int}
@@ -804,3 +775,52 @@ foreign import ccall safe "SDL_VideoInit"
 --------------------------------------------------------------------------------
 foreign import ccall safe "SDL_VideoQuit"
   videoQuit :: IO ()
+
+foreign import ccall safe "SDL_GetRGB"
+  sdlGetRGB :: Word32 -> Ptr PixelFormatStruct -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
+-- | Get RGB values from a pixel in the specified pixel format
+getRGB :: Pixel -> PixelFormat -> IO (Word8, Word8, Word8)
+getRGB (Pixel p) format
+  = alloca $ \red ->
+    alloca $ \green ->
+    alloca $ \blue ->
+    withForeignPtr format $ \ptr ->
+    do sdlGetRGB p ptr red green blue
+       [r,g,b] <- mapM peek [red,green,blue]
+       return (r,g,b)
+
+foreign import ccall "SDL_GetRGBA" 
+  sdlGetRGBA :: Word32 -> Ptr PixelFormatStruct -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
+
+-- | Get RGBA values from a pixel in the specified pixel format
+getRGBA :: Pixel -> PixelFormat -> IO (Word8, Word8, Word8, Word8)
+getRGBA (Pixel p) format =
+        alloca $ \red ->
+        alloca $ \green ->
+        alloca $ \blue ->
+        alloca $ \alpha ->
+        withForeignPtr format $ \ptr ->
+        do sdlGetRGBA p ptr red green blue alpha
+           [r,g,b,a] <- mapM peek [red, green, blue, alpha]
+--------------------------------------------------------------------------------
+foreign import ccall safe "SDL_GetWindowSurface"
+  sdlGetWindowSurface :: Ptr WindowStruct -> IO (Ptr SurfaceStruct)
+
+getWindowSurface :: Window -> IO (Maybe Surface)
+getWindowSurface w = withForeignPtr w $ \winPtr -> do
+  surfaceStructPtr <- sdlGetWindowSurface winPtr
+  if surfaceStructPtr == nullPtr
+     then return Nothing
+     else fmap Just $ mkFinalizedSurface surfaceStructPtr
+
+
+foreign import ccall safe "SDL_UpdateWindowSurface"
+  sdlUpdateWindowSurface :: Ptr WindowStruct -> IO #{type int}
+
+updateWindowSurface :: Window -> IO Int
+updateWindowSurface win =
+  withForeignPtr win $ \cw -> do
+    ret <- sdlUpdateWindowSurface cw
+    print ret
+    handleErrorI "updateWindowSurface" ret (return . fromIntegral)
+

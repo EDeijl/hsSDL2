@@ -1,6 +1,6 @@
 Cabal-Version:      >= 1.6
 Name:               SDL2
-Version:            0.1.0
+Version:            0.1.1
 Maintainer:         Lemmih (lemmih@gmail.com)
 Author:             Lemmih (lemmih@gmail.com)
 License-File:       LICENSE
@@ -63,6 +63,10 @@ Library
     Graphics.UI.SDL.StringUtilities
   Includes: SDL.h
   if ! os(darwin)
+   Extra-Libraries: SDL2
+   Frameworks: AppKit
+   ghc-options: -staticlib
+  if  os(darwin)
    Extra-Libraries: SDL2
   if os(windows)
    Extra-Libraries: SDL2main
